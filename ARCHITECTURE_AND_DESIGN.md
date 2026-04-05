@@ -15,11 +15,14 @@
                                           |
                                           v
     [Telegram Bot / Scheduler] --> [Formatted Status Report] --> [User Telegram]
+                                          ^
+                                          |
+    [Topic Curator Agent] (Async/Daily) --> [Dynamic Watchlist & Pruning]
 
 ## 2. Component Breakdown
 ### 2.1 Scheduler & Orchestrator
 - **Technology**: `APScheduler` (Async) integrated with `python-telegram-bot` (v20+).
-- **Role**: Triggers the 15-minute pipeline, manages concurrency, handles graceful shutdowns, and ensures non-blocking execution.
+- **Role**: Triggers the configurable polling pipeline (default 15-min), manages concurrency, handles graceful shutdowns, and ensures non-blocking execution. Schedules slower background jobs (e.g., Topic Curation, DB cleanup).
 
 ### 2.2 News Fetcher & Pre-Filter
 - **Technology**: `feedparser`, `aiohttp`.
@@ -31,25 +34,31 @@
 - **Context Tracker**: Queries SQLite for existing subjects. Uses lightweight LLM call or rule-based matching to map new facts to subjects. Updates DB state.
 - **Investment Analyzer**: Evaluates mapped subjects against market impact criteria. Outputs structured JSON with impact scores and affected assets.
 
-### 2.4 Telegram Interface
+### 2.4 Topic Curator & Watchlist Manager (New)
+- **Technology**: LLM (OpenRouter) + Rule-based heuristics.
+- **Role**: Runs on a slower schedule (e.g., daily or weekly). Reviews tracked subjects for relevance, prunes stale/low-impact topics, identifies emerging macro trends, and dynamically updates the active watchlist. Reduces manual maintenance and keeps the pipeline focused.
+
+### 2.5 Telegram Interface
 - **Technology**: `python-telegram-bot` (PTB).
 - **Role**: Receives processed pipeline output, formats it into Telegram-compatible MarkdownV2, handles user commands, and manages chat IDs securely.
 
-### 2.5 Data Layer (SQLite)
+### 2.6 Data Layer (SQLite)
 - **Schema**:
-  - `subjects`: `id`, `name`, `category`, `watchlist_flag`, `created_at`
+  - `subjects`: `id`, `name`, `category`, `watchlist_flag`, `created_at`, `last_seen`, `relevance_score`
   - `articles`: `id`, `subject_id`, `title`, `source_url`, `fetched_at`
   - `history`: `id`, `subject_id`, `status_snapshot`, `impact_level`, `updated_at`
+  - `watchlist`: `id`, `topic_name`, `keywords`, `priority`, `is_active`
 - **Access**: `aiosqlite` for async compatibility with PTB and APScheduler.
 
-## 3. Data Flow (15-Minute Cycle)
-1. **Trigger**: Scheduler fires `run_pipeline()`.
+## 3. Data Flow (Configurable Cycle)
+1. **Trigger**: Scheduler fires `run_pipeline()` at configured interval (default: 15 min).
 2. **Fetch**: `Fetcher` pulls RSS, filters noise, returns list of `Article` objects.
 3. **Summarize**: `FactsAgent` processes each article in parallel (batched to respect rate limits), returns `FactSummary`.
 4. **Contextualize**: `ContextAgent` matches summaries to DB subjects. Creates new subjects if unmatched. Updates `history` table.
 5. **Analyze**: `ImpactAgent` evaluates updated subjects, assigns market impact tags.
 6. **Format & Send**: Orchestrator compiles final report. PTB sends message to configured chat.
 7. **Log & Cleanup**: Pipeline logs metrics, prunes old DB records if retention limit reached.
+8. **Curate (Async)**: `TopicCurator` periodically reviews subject relevance, updates watchlist, and archives inactive topics.
 
 ## 4. Tech Stack
 - **Language**: Python 3.10+
@@ -58,7 +67,7 @@
 - **Messaging**: `python-telegram-bot` (v20+)
 - **Database**: `aiosqlite`
 - **Parsing**: `feedparser`, `beautifulsoup4` (for fallback content extraction)
-- **Config**: `pydantic-settings` + `.env`
+- **Config**: `pydantic-settings` + `.env` + `config.yaml` (for complex lists like RSS feeds & watchlist)
 
 ## 5. Error Handling & Resilience
 - **LLM Failures**: Retry up to 3 times with exponential backoff. Fallback to cached summary or skip with warning.
@@ -72,3 +81,4 @@
 - No hardcoded credentials.
 - Input sanitization on all LLM prompts to prevent injection.
 - Telegram bot restricted to specific chat ID(s) for security.
+- **Highly Configurable**: Polling intervals, RSS sources, LLM parameters, impact thresholds, and retention policies are externalized to `.env` and `config.yaml`.
