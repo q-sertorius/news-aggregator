@@ -10,6 +10,7 @@ An automated, agent-driven news monitoring system that polls RSS feeds on a conf
   - Include: Geopolitics, Macroeconomics, Central Banks, Corporate Earnings, Tech/Supply Chain, Commodities, Forex, Crypto.
   - Exclude: Sports, Entertainment, Lifestyle, Celebrity News, Pure Opinion/Editorials.
   - Deduplication: Remove exact or near-duplicate headlines across sources before processing.
+- **Metadata Preservation**: `source_url`, `published_at`, `author`, and `feed_name` are extracted and passed through the entire pipeline for traceability.
 
 ## 3. Agent Specifications
 ### 3.1 Facts & Numbers Summarizer Agent
@@ -46,12 +47,17 @@ An automated, agent-driven news monitoring system that polls RSS feeds on a conf
   - Unchanged subjects: Display current status concisely.
   - New developments: Highlight with clear markers (e.g., `🔴 NEW DEVELOPMENT:` or `⚡ UPDATE:`).
   - Grouped by impact level or sector for readability.
-- **Commands**: `/start`, `/status`, `/watchlist`, `/help`, `/config` (view current settings).
+- **Source Linking & Interactivity**:
+  - Every reported item includes a direct MarkdownV2 hyperlink to the original article (`[Title](URL)`).
+  - Inline keyboard buttons attached to each message: `🔗 Read Source`, `📖 Full Context`, `📊 Impact Details`.
+  - Callback handlers fetch and reply with extended timelines, related articles, or full impact breakdowns without cluttering the main feed.
+- **Commands**: `/start`, `/status`, `/watchlist`, `/help`, `/config`, `/details <subject_id>` (retrieves complete history & all linked sources for a topic).
 
 ## 6. Data Storage
 - **Database**: SQLite.
 - **Tables**: `subjects`, `articles`, `subject_history`, `watchlist`.
 - **Retention**: Configurable (default: 30 days) to manage DB size and context window limits. Auto-pruning handled by scheduler.
+- **Traceability**: `articles` table retains `source_url`, `published_at`, and `summary_snippet` to support on-demand detail retrieval and source verification.
 
 ## 7. Configuration & Customization
 - **Polling**: `POLLING_INTERVAL_MINUTES` (default: 15)
@@ -59,7 +65,7 @@ An automated, agent-driven news monitoring system that polls RSS feeds on a conf
 - **LLM**: `LLM_MODEL`, `MAX_TOKENS`, `TEMPERATURE`, `RATE_LIMIT_RPM`
 - **Impact Scoring**: Customizable weights for equities, forex, commodities, etc.
 - **Retention**: `DB_RETENTION_DAYS` (default: 30)
-- **Telegram**: `TELEGRAM_CHAT_IDS`, `REPORT_FORMAT`, `NOTIFICATION_THRESHOLDS`
+- **Telegram**: `TELEGRAM_CHAT_IDS`, `REPORT_FORMAT`, `NOTIFICATION_THRESHOLDS`, `ENABLE_INLINE_BUTTONS`
 - All settings managed via `.env` (secrets) and `config.yaml` (structured lists/objects).
 
 ## 8. Non-Functional Requirements
