@@ -77,3 +77,4 @@ dmypy.json
 # Database
 *.db
 *.sqlite3
+.aider*
