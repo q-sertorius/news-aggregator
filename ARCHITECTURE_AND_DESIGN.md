@@ -31,7 +31,7 @@
 ### 2.3 Agent Pipeline (Sequential with Shared State)
 - **Base Agent Class**: Abstract interface for `run(input_data) -> output_data`.
 - **Facts Summarizer**: Calls OpenRouter API with strict system prompt enforcing factual extraction. Handles token limits by chunking long articles. Passes through original `source_url` and `title`.
-- **Context Tracker**: Queries SQLite for existing subjects. Uses lightweight LLM call or rule-based matching to map new facts to subjects. Updates DB state.
+- **Context Tracker**: Matches incoming facts to subjects using a scalable vector-based approach. It generates an embedding for each new fact summary and queries a vector index (e.g., using `ChromaDB` or `FAISS`) to find the most semantically similar existing subjects. This avoids context window limitations by only loading relevant subjects into the LLM prompt for mapping. Updates the database state.
 - **Investment Analyzer**: Evaluates mapped subjects against market impact criteria. Outputs structured JSON with impact scores and affected assets.
 
 ### 2.4 Topic Curator & Watchlist Manager (New)
@@ -53,6 +53,8 @@
   - `history`: `id`, `subject_id`, `status_snapshot`, `impact_level`, `updated_at`
   - `watchlist`: `id`, `topic_name`, `keywords`, `priority`, `is_active`
 - **Access**: `aiosqlite` for async compatibility with PTB and APScheduler.
+- **Design Considerations**:
+  - The schema currently uses text columns to store JSON arrays (`affected_assets`, `article_ids`). For improved query performance and scalability, this should be normalized into proper junction tables (e.g., `subject_assets`, `history_articles`).
 
 ## 3. Data Flow (Configurable Cycle)
 1. **Trigger**: Scheduler fires `run_pipeline()` at configured interval (default: 15 min).
@@ -64,7 +66,10 @@
 7. **Log & Cleanup**: Pipeline logs metrics, prunes old DB records if retention limit reached.
 8. **Curate (Async)**: `TopicCurator` periodically reviews subject relevance, updates watchlist, and archives inactive topics.
 
-## 4. Tech Stack
+## 4. Future Scalability Considerations
+- **Agent Decoupling**: For higher throughput, the sequential agent pipeline could be decoupled using a message queue (e.g., RabbitMQ, Redis, or `asyncio.Queue`). This would allow each agent to operate and scale independently, improving resilience and parallelism.
+
+## 5. Tech Stack
 - **Language**: Python 3.10+
 - **LLM Gateway**: OpenRouter API (`qwen/qwen3.6-plus:free`) via `openai` Python SDK (compatible endpoint)
 - **Scheduling**: `APScheduler` (AsyncIO)
@@ -73,14 +78,16 @@
 - **Parsing**: `feedparser`, `beautifulsoup4` (for fallback content extraction)
 - **Config**: `pydantic-settings` + `.env` + `config.yaml` (for complex lists like RSS feeds & watchlist)
 
-## 5. Error Handling & Resilience
-- **LLM Failures**: Retry up to 3 times with exponential backoff. Fallback to cached summary or skip with warning.
+## 6. Error Handling & Resilience
+- **LLM Failures**: 
+  - Retry up to 3 times with exponential backoff. Fallback to cached summary or skip with warning.
+  - For persistent parsing or processing failures ("poison pill" articles), move the problematic data to a "dead-letter queue" or table for later inspection and debugging without halting the main pipeline.
 - **RSS Downtime**: Skip failed sources, log error, continue with remaining feeds.
 - **Rate Limits**: Implement token bucket or sliding window rate limiter for OpenRouter calls.
 - **State Consistency**: Use SQLite transactions for DB updates. Rollback on pipeline failure.
 - **Monitoring**: Console logging with structured JSON output for easy debugging. Optional health-check endpoint.
 
-## 6. Security & Configuration
+## 7. Security & Configuration
 - All secrets (`OPENROUTER_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) loaded via `python-dotenv`.
 - No hardcoded credentials.
 - Input sanitization on all LLM prompts to prevent injection.
