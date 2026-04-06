@@ -129,10 +129,83 @@ polling:
   max_pipeline_duration_minutes: 5
 
 feeds:
-  - url: "https://www.reuters.com/finance/feed/"
+  # Macroeconomics & Central Banks
+  - url: "https://www.reuters.com/finance/economy/"
     category: "macroeconomics"
-  - url: "https://feeds.a.dj.com/rss/RSSWorldNews.xml"
+  - url: "https://feeds.bloomberg.com/markets/news.rss"
+    category: "macroeconomics"
+  - url: "https://www.ft.com/markets?format=rss"
+    category: "macroeconomics"
+  - url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
+    category: "macroeconomics"
+
+  # Geopolitics & World News
+  - url: "https://feeds.reuters.com/reuters/worldNews"
     category: "geopolitics"
+  - url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    category: "geopolitics"
+  - url: "https://www.aljazeera.com/xml/rss/all.xml"
+    category: "geopolitics"
+  - url: "https://rsshub.app/apnews/topics/world-news"
+    category: "geopolitics"
+
+  # Tech & Supply Chain
+  - url: "https://www.reuters.com/technology/rss"
+    category: "tech_supply_chain"
+  - url: "https://techcrunch.com/feed/"
+    category: "tech_supply_chain"
+  - url: "https://www.theverge.com/rss/index.xml"
+    category: "tech_supply_chain"
+
+  # Commodities & Energy
+  - url: "https://oilprice.com/rss/main"
+    category: "commodities"
+  - url: "https://www.mining.com/feed/"
+    category: "commodities"
+
+  # Crypto & Digital Assets
+  - url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    category: "crypto"
+  - url: "https://www.theblock.co/rss.xml"
+    category: "crypto"
+
+  # Corporate & Markets
+  - url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+    category: "corporate"
+  - url: "https://www.ft.com/companies?format=rss"
+    category: "corporate"
+  - url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    category: "geopolitics"
+  - url: "https://www.aljazeera.com/xml/rss/all.xml"
+    category: "geopolitics"
+  - url: "https://rsshub.app/apnews/topics/world-news"
+    category: "geopolitics"
+
+  # Tech & Supply Chain
+  - url: "https://www.reuters.com/technology/rss"
+    category: "tech_supply_chain"
+  - url: "https://techcrunch.com/feed/"
+    category: "tech_supply_chain"
+  - url: "https://www.theverge.com/rss/index.xml"
+    category: "tech_supply_chain"
+
+  # Commodities & Energy
+  - url: "https://oilprice.com/rss/main"
+    category: "commodities"
+  - url: "https://www.mining.com/feed/"
+    category: "commodities"
+
+  # Crypto & Digital Assets
+  - url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    category: "crypto"
+  - url: "https://www.theblock.co/rss.xml"
+    category: "crypto"
+
+  # Corporate & Markets
+  - url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+    category: "corporate"
+  - url: "https://www.ft.com/companies?format=rss"
+    category: "corporate"
 
 llm:
   model: "qwen/qwen3.6-plus:free"
