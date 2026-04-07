@@ -74,11 +74,7 @@
         <header>
             <h1>📰 News Aggregator</h1>
             <div class="controls">
-                <label class="auto-refresh">
-                    <input type="checkbox" id="auto-refresh"> Auto-refresh (15s)
-                </label>
                 <button class="btn btn-primary" id="run-btn" onclick="runPipeline()">▶ Run Pipeline</button>
-                <button class="btn btn-secondary" onclick="refreshAll()">↻ Refresh</button>
                 <button class="btn btn-danger" onclick="clearDb()">🗑 Clear DB</button>
             </div>
         </header>
@@ -241,14 +237,8 @@
             }
         }
 
-        // Auto-refresh toggle
-        document.getElementById('auto-refresh').addEventListener('change', function() {
-            if (this.checked) {
-                autoRefreshInterval = setInterval(refreshAll, 15000);
-            } else {
-                clearInterval(autoRefreshInterval);
-            }
-        });
+        // Auto-refresh every 10 seconds
+        autoRefreshInterval = setInterval(refreshAll, 10000);
 
         // Initial load
         refreshAll();

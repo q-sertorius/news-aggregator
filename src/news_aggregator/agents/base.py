@@ -3,6 +3,7 @@
 import openai
 import json
 import asyncio
+import time
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
@@ -10,6 +11,11 @@ from openai import RateLimitError
 from ..config import AppConfig
 
 logger = logging.getLogger(__name__)
+
+# Global rate limiter - shared across all agent instances
+_last_call_time = 0
+_rate_lock = asyncio.Lock()
+_MIN_CALL_INTERVAL = 10.0  # Minimum seconds between ANY LLM call
 
 
 class BaseAgent(ABC):
@@ -26,9 +32,18 @@ class BaseAgent(ABC):
     async def _call_llm(
         self, system_prompt: str, user_prompt: str, is_json: bool = True
     ) -> Any:
-        """Call OpenRouter and handle retries/parsing."""
+        """Call OpenRouter with global rate limiting and 429 retry."""
+        global _last_call_time
 
         for attempt in range(5):
+            # Enforce minimum gap between all LLM calls
+            async with _rate_lock:
+                elapsed = time.time() - _last_call_time
+                if elapsed < _MIN_CALL_INTERVAL:
+                    wait = _MIN_CALL_INTERVAL - elapsed
+                    await asyncio.sleep(wait)
+                _last_call_time = time.time()
+
             try:
                 response = await self.client.chat.completions.create(
                     model=self.config.llm.model,
@@ -65,10 +80,9 @@ class BaseAgent(ABC):
                 return content
 
             except RateLimitError as e:
-                # Parse retry-after header if available
-                retry_after = 30  # default wait for 429
+                retry_after = 60  # default: wait 60s on 429
                 if hasattr(e, "response") and e.response is not None:
-                    retry_after = int(e.response.headers.get("Retry-After", 30))
+                    retry_after = int(e.response.headers.get("Retry-After", 60))
                 logger.warning(
                     f"Rate limited (429). Waiting {retry_after}s before retry ({attempt + 1}/5)..."
                 )

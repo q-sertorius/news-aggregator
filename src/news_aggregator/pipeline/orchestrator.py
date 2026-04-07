@@ -57,12 +57,9 @@ class PipelineOrchestrator:
             logger.info("[DEDUP] No new articles. Ending run early.")
             return []
 
-        # 3. Process each article — 1 LLM call per article (was 3)
-        # Rate limiting: openrouter/free has ~15 RPM.
-        # We wait 4s between calls to stay under 15/min.
+        # Rate limiting is handled globally in base.py (10s minimum between LLM calls)
         results = []
         processed_count = 0
-        call_delay = 60.0 / self.config.llm.rate_limit_rpm  # ~4s at 15 RPM
 
         for article in new_articles:
             try:
@@ -74,10 +71,6 @@ class PipelineOrchestrator:
                 result = await self.processor.run(article)
                 results.append(result)
                 processed_count += 1
-
-                # Rate limit between articles
-                if processed_count < len(new_articles):
-                    await asyncio.sleep(call_delay)
 
             except Exception as e:
                 logger.error(
