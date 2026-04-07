@@ -93,3 +93,15 @@ class VectorStore:
     async def delete_subject(self, subject_id: int):
         """Remove a subject from the vector store."""
         self.collection.delete(ids=[str(subject_id)])
+
+    def clear_collection(self):
+        """Delete all entries from the vector collection."""
+        all_ids = self.collection.get()["ids"]
+        if all_ids:
+            self.collection.delete(ids=all_ids)
+
+    def clear_collection(self):
+        """Delete all entries from the vector collection."""
+        all_ids = self.collection.get()["ids"]
+        if all_ids:
+            self.collection.delete(ids=all_ids)

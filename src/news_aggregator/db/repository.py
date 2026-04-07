@@ -60,20 +60,17 @@ class NewsRepository:
     ):
         """Update a subject's status, impact level, and associated assets."""
         async with aiosqlite.connect(self.db_path) as db:
-            # Update subject metadata
             await db.execute(
                 "UPDATE subjects SET latest_status = ?, impact_level = ?, last_seen = ? WHERE id = ?",
                 (status, impact_level, datetime.now(), subject_id),
             )
 
-            # Update history
             cursor = await db.execute(
                 "INSERT INTO subject_history (subject_id, status_snapshot, impact_level) VALUES (?, ?, ?)",
                 (subject_id, status, impact_level),
             )
             history_id = cursor.lastrowid
 
-            # Update assets (clear and re-add for simplicity)
             await db.execute(
                 "DELETE FROM subject_assets WHERE subject_id = ?", (subject_id,)
             )
@@ -102,7 +99,6 @@ class NewsRepository:
             return []
 
         async with aiosqlite.connect(self.db_path) as db:
-            # Using placeholders for a safe IN clause
             placeholders = ",".join(["?"] * len(urls))
             cursor = await db.execute(
                 f"SELECT source_url FROM articles WHERE source_url IN ({placeholders})",
@@ -121,7 +117,7 @@ class NewsRepository:
             await db.commit()
 
     async def get_stats(self) -> Dict[str, Any]:
-        """Get database statistics for the /status command."""
+        """Get database statistics."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             subjects = await (
@@ -169,8 +165,8 @@ class NewsRepository:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-    async def get_recent_articles(self, limit: int = 20) -> List[Dict]:
-        """Fetch recent articles with subject info."""
+    async def get_latest_article_for_subject(self, subject_id: int) -> Optional[Dict]:
+        """Get the most recent article for a subject."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
@@ -178,19 +174,32 @@ class NewsRepository:
                           s.name as subject_name, s.impact_level
                    FROM articles a
                    LEFT JOIN subjects s ON a.subject_id = s.id
-                   ORDER BY a.fetched_at DESC LIMIT ?""",
-                (limit,),
+                   WHERE a.subject_id = ?
+                   ORDER BY a.fetched_at DESC LIMIT 1""",
+                (subject_id,),
             )
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            row = await cursor.fetchone()
+            if row:
+                d = dict(row)
+                assets_cursor = await db.execute(
+                    "SELECT asset_ticker FROM subject_assets WHERE subject_id = ?",
+                    (subject_id,),
+                )
+                asset_rows = await assets_cursor.fetchall()
+                d["assets"] = [r["asset_ticker"] for r in asset_rows]
+                d["reasoning"] = ""
+                d["classification"] = "ONGOING_DEVELOPMENT"
+                return d
+            return None
 
-    async def get_dead_letters(self, limit: int = 20) -> List[Dict]:
-        """Fetch recent failed articles."""
+    async def clear_all(self):
+        """Delete all data from all tables."""
         async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute(
-                "SELECT * FROM dead_letter_queue ORDER BY failed_at DESC LIMIT ?",
-                (limit,),
-            )
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            await db.execute("DELETE FROM subject_assets")
+            await db.execute("DELETE FROM history_articles")
+            await db.execute("DELETE FROM subject_history")
+            await db.execute("DELETE FROM articles")
+            await db.execute("DELETE FROM subjects")
+            await db.execute("DELETE FROM dead_letter_queue")
+            await db.execute("DELETE FROM watchlist")
+            await db.commit()
