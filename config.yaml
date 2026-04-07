@@ -1,0 +1,93 @@
+polling:
+  interval_minutes: 15
+  max_pipeline_duration_minutes: 5
+
+feeds:
+  # Macroeconomics & Central Banks
+  - url: "https://www.reuters.com/finance/economy/"
+    category: "macroeconomics"
+  - url: "https://feeds.bloomberg.com/markets/news.rss"
+    category: "macroeconomics"
+  - url: "https://www.ft.com/markets?format=rss"
+    category: "macroeconomics"
+  - url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
+    category: "macroeconomics"
+
+  # Geopolitics & World News
+  - url: "https://feeds.reuters.com/reuters/worldNews"
+    category: "geopolitics"
+  - url: "https://feeds.bbci.co.uk/news/world/rss.xml"
+    category: "geopolitics"
+  - url: "https://www.aljazeera.com/xml/rss/all.xml"
+    category: "geopolitics"
+  - url: "https://rsshub.app/apnews/topics/world-news"
+    category: "geopolitics"
+
+  # Tech & Supply Chain
+  - url: "https://www.reuters.com/technology/rss"
+    category: "tech_supply_chain"
+  - url: "https://techcrunch.com/feed/"
+    category: "tech_supply_chain"
+  - url: "https://www.theverge.com/rss/index.xml"
+    category: "tech_supply_chain"
+
+  # Commodities & Energy
+  - url: "https://oilprice.com/rss/main"
+    category: "commodities"
+  - url: "https://www.mining.com/feed/"
+    category: "commodities"
+
+  # Crypto & Digital Assets
+  - url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    category: "crypto"
+  - url: "https://www.theblock.co/rss.xml"
+    category: "crypto"
+
+  # Corporate & Markets
+  - url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+    category: "corporate"
+  - url: "https://www.ft.com/companies?format=rss"
+    category: "corporate"
+
+llm:
+  model: "qwen/qwen3.6-plus:free"
+  base_url: "https://openrouter.ai/api/v1"
+  max_tokens: 2000
+  temperature: 0.1
+  rate_limit_rpm: 15
+
+impact:
+  weights:
+    equities: 1.0
+    forex: 0.8
+    bonds: 0.6
+    commodities: 0.7
+  thresholds:
+    high: 0.8
+    medium: 0.5
+    low: 0.2
+
+retention:
+  db_retention_days: 30
+  max_articles_per_subject: 50
+
+telegram:
+  report_format: "markdownv2"
+  enable_inline_buttons: true
+  notification_threshold: "MEDIUM"
+  max_message_length: 4000
+
+watchlist:
+  topics:
+    - name: "Fed Interest Rates"
+      keywords: ["federal reserve", "interest rate", "fomc", "jerome powell"]
+      priority: 1
+    - name: "US-China Trade"
+      keywords: ["china trade", "tariffs", "semiconductor export"]
+      priority: 1
+    - name: "NVIDIA/AI Chips"
+      keywords: ["nvidia", "ai chips", "gpu shortage", "semiconductor"]
+      priority: 2
+    - name: "Oil Prices"
+      keywords: ["oil price", "crude", "opec", "brent"]
+      priority: 2

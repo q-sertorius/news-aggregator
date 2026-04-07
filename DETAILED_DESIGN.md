@@ -610,7 +610,7 @@ pytest tests/ --cov=src                # Coverage report
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env  # Fill in secrets
+cp .env .env  # Fill in secrets
 cp config.example.yaml config.yaml  # Adjust feeds/watchlist
 python -m src.news_aggregator.main
 ```
