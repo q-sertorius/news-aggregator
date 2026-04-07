@@ -77,4 +77,15 @@ dmypy.json
 # Database
 *.db
 *.sqlite3
-.aider*
+
+# ChromaDB vector store
+data/chromadb/
+
+# Test artifacts
+tests/test_*.py
+tests/check_quota.py
+tests/verify_phase*.py
+
+# OS
+.DS_Store
+Thumbs.db
