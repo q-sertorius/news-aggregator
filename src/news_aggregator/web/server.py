@@ -3,6 +3,8 @@
 import asyncio
 import json
 import logging
+import os
+from pathlib import Path
 from aiohttp import web
 from ..db.repository import NewsRepository
 from ..db.vector_store import VectorStore
@@ -10,6 +12,10 @@ from ..pipeline.orchestrator import PipelineOrchestrator
 from ..config import AppConfig
 
 logger = logging.getLogger(__name__)
+
+# Resolve paths relative to this file's location
+_BASE_DIR = Path(__file__).parent
+_TEMPLATES_DIR = _BASE_DIR / "templates"
 
 
 class WebDashboard:
@@ -29,11 +35,10 @@ class WebDashboard:
         self.app.router.add_get("/api/articles", self.api_articles)
         self.app.router.add_get("/api/dead_letters", self.api_dead_letters)
         self.app.router.add_post("/api/run", self.api_run)
-        # Serve static files and templates
-        self.app.router.add_static("/static/", path="src/news_aggregator/web/static/")
 
     async def index(self, request: web.Request) -> web.Response:
-        with open("src/news_aggregator/web/templates/index.html", "r") as f:
+        html_path = _TEMPLATES_DIR / "index.html"
+        with open(html_path, "r") as f:
             html = f.read()
         return web.Response(text=html, content_type="text/html")
 
@@ -76,6 +81,15 @@ class WebDashboard:
             logger.error(f"Pipeline run failed: {e}")
             return web.json_response({"success": False, "error": str(e)}, status=500)
 
-    def run(self, host: str = "127.0.0.1", port: int = 8080):
+    async def run(self, host: str = "127.0.0.1", port: int = 8080):
         logger.info(f"Starting web dashboard at http://{host}:{port}")
-        web.run_app(self.app, host=host, port=port)
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, host, port)
+        await site.start()
+        # Keep running forever
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            await runner.cleanup()

@@ -59,13 +59,19 @@ class AppConfig(BaseSettings):
     @field_validator("telegram_chat_ids", mode="before")
     @classmethod
     def parse_chat_ids(cls, v: Any) -> List[int]:
+        if isinstance(v, int):
+            return [v]
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
                     return [int(x) for x in parsed]
+                if isinstance(parsed, int):
+                    return [parsed]
             except (json.JSONDecodeError, ValueError):
                 return [int(x.strip()) for x in v.split(",") if x.strip()]
+        if isinstance(v, list):
+            return [int(x) for x in v]
         return v
 
     polling: PollingConfig

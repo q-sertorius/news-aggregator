@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from ..config import AppConfig
 from ..db.repository import NewsRepository
@@ -11,6 +12,10 @@ from ..fetcher.deduplicator import Deduplicator
 from ..agents.facts_summarizer import FactsSummarizer
 from ..agents.context_tracker import ContextTracker
 from ..agents.impact_analyzer import ImpactAnalyzer
+
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineOrchestrator:
@@ -29,7 +34,7 @@ class PipelineOrchestrator:
     async def initialize(self):
         """Initialize database and vector store."""
         await self.repo.initialize()
-        print("[INIT] SQLite and Vector Store initialized.")
+        logger.info("[INIT] SQLite and Vector Store initialized.")
 
     async def run_pipeline(self, max_articles: int = None) -> List[Dict[str, Any]]:
         """Run a single polling cycle of the news aggregator."""
