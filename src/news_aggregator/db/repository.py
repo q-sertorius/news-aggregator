@@ -119,3 +119,49 @@ class NewsRepository:
                 (url, content, error),
             )
             await db.commit()
+
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get database statistics for the /status command."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            subjects = await (
+                await db.execute("SELECT COUNT(*) as c FROM subjects")
+            ).fetchone()
+            articles = await (
+                await db.execute("SELECT COUNT(*) as c FROM articles")
+            ).fetchone()
+            dead = await (
+                await db.execute("SELECT COUNT(*) as c FROM dead_letter_queue")
+            ).fetchone()
+            last = await (
+                await db.execute("SELECT MAX(fetched_at) as t FROM articles")
+            ).fetchone()
+            return {
+                "subjects": subjects["c"],
+                "articles": articles["c"],
+                "dead_letters": dead["c"],
+                "last_poll": last["t"] or "Never",
+            }
+
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get database statistics for the /status command."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            subjects = await (
+                await db.execute("SELECT COUNT(*) as c FROM subjects")
+            ).fetchone()
+            articles = await (
+                await db.execute("SELECT COUNT(*) as c FROM articles")
+            ).fetchone()
+            dead = await (
+                await db.execute("SELECT COUNT(*) as c FROM dead_letter_queue")
+            ).fetchone()
+            last = await (
+                await db.execute("SELECT MAX(fetched_at) as t FROM articles")
+            ).fetchone()
+            return {
+                "subjects": subjects["c"],
+                "articles": articles["c"],
+                "dead_letters": dead["c"],
+                "last_poll": last["t"] or "Never",
+            }
