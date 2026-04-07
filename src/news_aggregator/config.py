@@ -22,6 +22,12 @@ class LLMConfig(BaseModel):
     max_tokens: int = 2000
     temperature: float = 0.1
     rate_limit_rpm: int = 15
+    max_articles_per_run: int = (
+        5  # Cap articles per pipeline to avoid hitting rate limits
+    )
+    max_articles_per_run: int = (
+        5  # Cap articles per pipeline to avoid hitting rate limits
+    )
 
 
 class ImpactConfig(BaseModel):

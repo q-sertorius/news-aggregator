@@ -3,9 +3,13 @@
 import openai
 import json
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+from openai import RateLimitError
 from ..config import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
@@ -24,7 +28,7 @@ class BaseAgent(ABC):
     ) -> Any:
         """Call OpenRouter and handle retries/parsing."""
 
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 response = await self.client.chat.completions.create(
                     model=self.config.llm.model,
@@ -46,7 +50,6 @@ class BaseAgent(ABC):
                     raise Exception("Empty response from LLM")
 
                 if is_json:
-                    # Basic cleaning in case the model returns markdown blocks
                     clean_content = content.strip()
                     if clean_content.startswith("```json"):
                         clean_content = (
@@ -61,8 +64,18 @@ class BaseAgent(ABC):
 
                 return content
 
+            except RateLimitError as e:
+                # Parse retry-after header if available
+                retry_after = 30  # default wait for 429
+                if hasattr(e, "response") and e.response is not None:
+                    retry_after = int(e.response.headers.get("Retry-After", 30))
+                logger.warning(
+                    f"Rate limited (429). Waiting {retry_after}s before retry ({attempt + 1}/5)..."
+                )
+                await asyncio.sleep(retry_after)
+
             except Exception as e:
-                print(f"LLM Call failed (attempt {attempt + 1}): {str(e)}")
-                if attempt == 2:
+                logger.warning(f"LLM Call failed (attempt {attempt + 1}): {str(e)}")
+                if attempt == 4:
                     raise e
                 await asyncio.sleep(2**attempt)

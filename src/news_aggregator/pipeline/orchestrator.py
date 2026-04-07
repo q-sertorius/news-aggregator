@@ -51,10 +51,16 @@ class PipelineOrchestrator:
         # 2. Deduplicate
         new_articles = await self.dedup.filter_new_articles(raw_articles)
 
-        if max_articles:
-            new_articles = new_articles[:max_articles]
+        # Cap articles per run based on config to avoid rate limits
+        max_articles = min(
+            self.config.llm.max_articles_per_run,
+            max_articles if max_articles else self.config.llm.max_articles_per_run,
+        )
+        new_articles = new_articles[:max_articles]
 
-        print(f"[DEDUP] Identified {len(new_articles)} new articles to process.")
+        print(
+            f"[DEDUP] Identified {len(new_articles)} new articles to process (capped at {max_articles})."
+        )
 
         if not new_articles:
             print("[DEDUP] No new articles. Ending run early.")
@@ -73,7 +79,7 @@ class PipelineOrchestrator:
 
                 # Step A: Summarize Facts
                 fact_summary = await self.summarizer.run(article)
-                print(f"[DEBUG] Fact summary: {fact_summary}")
+                logger.debug(f"Summarized: {article.title[:50]}...")
 
                 # Step B: Contextualize (Match to Subject)
                 context_result = await self.tracker.run(fact_summary)
@@ -100,12 +106,11 @@ class PipelineOrchestrator:
 
                 processed_count += 1
 
-                # Respect Rate Limits (15 RPM max for Gemini Flash free tier)
-                # Each article uses ~3 LLM calls. At 25 articles, that's 75 calls.
-                # 15 RPM = 1 call every 4 seconds.
-                # To be safe, we wait between articles.
+                # Rate limiting: Free models on OpenRouter have strict RPM limits.
+                # Each article = 3 LLM calls. We space them out to avoid 429 errors.
+                # 15 RPM = 1 call per 4s. With 3 calls per article, wait ~12s between articles.
                 if processed_count < len(new_articles):
-                    await asyncio.sleep(4)  # 4s delay between articles
+                    await asyncio.sleep(12)
 
             except Exception as e:
                 import traceback

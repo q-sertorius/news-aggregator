@@ -55,6 +55,8 @@ llm:
   max_tokens: 2000
   temperature: 0.1
   rate_limit_rpm: 15
+  max_articles_per_run: 3
+  max_articles_per_run: 3
 
 impact:
   weights:
