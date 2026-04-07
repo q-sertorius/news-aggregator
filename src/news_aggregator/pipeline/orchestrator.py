@@ -9,9 +9,7 @@ from ..db.repository import NewsRepository
 from ..db.vector_store import VectorStore
 from ..fetcher.rss_fetcher import RSSFetcher
 from ..fetcher.deduplicator import Deduplicator
-from ..agents.facts_summarizer import FactsSummarizer
-from ..agents.context_tracker import ContextTracker
-from ..agents.impact_analyzer import ImpactAnalyzer
+from ..agents.article_processor import ArticleProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +22,8 @@ class PipelineOrchestrator:
         self.fetcher = RSSFetcher()
         self.dedup = Deduplicator(self.repo)
 
-        # Agents
-        self.summarizer = FactsSummarizer(config)
-        self.tracker = ContextTracker(config, self.vstore, self.repo)
-        self.analyzer = ImpactAnalyzer(config, self.repo)
+        # Single combined agent: extracts facts, classifies, analyzes impact in 1 LLM call
+        self.processor = ArticleProcessor(config, self.vstore, self.repo)
 
     async def initialize(self):
         """Initialize database and vector store."""
@@ -61,9 +57,9 @@ class PipelineOrchestrator:
             logger.info("[DEDUP] No new articles. Ending run early.")
             return []
 
-        # 3. Process each article through the agent pipeline
-        # Rate limiting: openrouter/free has ~15 RPM. Each article = 3 LLM calls.
-        # We wait 4s between each LLM call to stay under 15/min.
+        # 3. Process each article — 1 LLM call per article (was 3)
+        # Rate limiting: openrouter/free has ~15 RPM.
+        # We wait 4s between calls to stay under 15/min.
         results = []
         processed_count = 0
         call_delay = 60.0 / self.config.llm.rate_limit_rpm  # ~4s at 15 RPM
@@ -74,36 +70,14 @@ class PipelineOrchestrator:
                     f"[PROCESS] Article {processed_count + 1}/{len(new_articles)}: '{article.title[:50]}...'"
                 )
 
-                # Step A: Summarize Facts
-                fact_summary = await self.summarizer.run(article)
-                await asyncio.sleep(call_delay)
-
-                # Step B: Contextualize (Match to Subject)
-                context_result = await self.tracker.run(fact_summary)
-                await asyncio.sleep(call_delay)
-
-                # Step C: Impact Analysis
-                impact_result = await self.analyzer.run(
-                    context_result["subject_id"], context_result["status_update"]
-                )
-                await asyncio.sleep(call_delay)
-
-                # Link article to subject in database
-                await self.repo.add_article(context_result["subject_id"], fact_summary)
-
-                results.append(
-                    {
-                        "title": article.title,
-                        "subject_id": context_result["subject_id"],
-                        "status": context_result["status_update"],
-                        "impact": impact_result["impact_level"],
-                        "assets": impact_result["affected_assets"],
-                        "reasoning": impact_result["reasoning"],
-                        "url": article.source_url,
-                    }
-                )
-
+                # Single call: extract + classify + analyze
+                result = await self.processor.run(article)
+                results.append(result)
                 processed_count += 1
+
+                # Rate limit between articles
+                if processed_count < len(new_articles):
+                    await asyncio.sleep(call_delay)
 
             except Exception as e:
                 logger.error(
