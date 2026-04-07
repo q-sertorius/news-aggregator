@@ -21,8 +21,11 @@ _MIN_CALL_INTERVAL = 10.0  # Minimum seconds between ANY LLM call
 class BaseAgent(ABC):
     def __init__(self, config: AppConfig):
         self.config = config
+        # Disable SDK's built-in retries — we handle rate limiting ourselves
         self.client = openai.AsyncOpenAI(
-            api_key=config.openrouter_api_key, base_url=config.llm.base_url
+            api_key=config.openrouter_api_key,
+            base_url=config.llm.base_url,
+            max_retries=0,
         )
 
     @abstractmethod
