@@ -143,25 +143,54 @@ class NewsRepository:
                 "last_poll": last["t"] or "Never",
             }
 
-    async def get_stats(self) -> Dict[str, Any]:
-        """Get database statistics for the /status command."""
+    async def get_recent_articles(self, limit: int = 20) -> List[Dict]:
+        """Fetch recent articles with subject info."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-            subjects = await (
-                await db.execute("SELECT COUNT(*) as c FROM subjects")
-            ).fetchone()
-            articles = await (
-                await db.execute("SELECT COUNT(*) as c FROM articles")
-            ).fetchone()
-            dead = await (
-                await db.execute("SELECT COUNT(*) as c FROM dead_letter_queue")
-            ).fetchone()
-            last = await (
-                await db.execute("SELECT MAX(fetched_at) as t FROM articles")
-            ).fetchone()
-            return {
-                "subjects": subjects["c"],
-                "articles": articles["c"],
-                "dead_letters": dead["c"],
-                "last_poll": last["t"] or "Never",
-            }
+            cursor = await db.execute(
+                """SELECT a.id, a.title, a.source_url, a.feed_name, a.published_at, a.fetched_at,
+                          s.name as subject_name, s.impact_level
+                   FROM articles a
+                   LEFT JOIN subjects s ON a.subject_id = s.id
+                   ORDER BY a.fetched_at DESC LIMIT ?""",
+                (limit,),
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_dead_letters(self, limit: int = 20) -> List[Dict]:
+        """Fetch recent failed articles."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM dead_letter_queue ORDER BY failed_at DESC LIMIT ?",
+                (limit,),
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_recent_articles(self, limit: int = 20) -> List[Dict]:
+        """Fetch recent articles with subject info."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT a.id, a.title, a.source_url, a.feed_name, a.published_at, a.fetched_at,
+                          s.name as subject_name, s.impact_level
+                   FROM articles a
+                   LEFT JOIN subjects s ON a.subject_id = s.id
+                   ORDER BY a.fetched_at DESC LIMIT ?""",
+                (limit,),
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    async def get_dead_letters(self, limit: int = 20) -> List[Dict]:
+        """Fetch recent failed articles."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM dead_letter_queue ORDER BY failed_at DESC LIMIT ?",
+                (limit,),
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]

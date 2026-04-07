@@ -2,12 +2,12 @@
 
 import asyncio
 import logging
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from telegram.ext import ApplicationBuilder
 
 from .config import AppConfig
 from .pipeline.orchestrator import PipelineOrchestrator
-from .telegram.bot import NewsBot
+from .db.repository import NewsRepository
+from .db.vector_store import VectorStore
+from .web.server import WebDashboard
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -16,46 +16,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def run_once(orchestrator: PipelineOrchestrator, bot: NewsBot):
-    """Execute a single pipeline cycle and send results."""
-    try:
-        results = await orchestrator.run_pipeline()
-        if results:
-            await bot.send_report(results)
-    except Exception as e:
-        logger.error(f"Pipeline run failed: {e}")
-
-
 async def main():
     config = AppConfig.load("config.yaml")
+
+    # Initialize data layer
+    repo = NewsRepository()
+    await repo.initialize()
+
+    vstore = VectorStore()
 
     # Initialize orchestrator
     orchestrator = PipelineOrchestrator(config)
     await orchestrator.initialize()
 
-    # Initialize bot with orchestrator reference
-    bot = NewsBot(config, orchestrator=orchestrator)
-
-    # Setup scheduler
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(
-        run_once,
-        "interval",
-        minutes=config.polling.interval_minutes,
-        args=[orchestrator, bot],
-        id="news_pipeline",
-        name="News Aggregator Pipeline",
-        replace_existing=True,
-    )
-    scheduler.start()
-
-    # Run a quick initial check
-    logger.info("Running initial pipeline check...")
-    await run_once(orchestrator, bot)
-
-    # Start bot polling
-    logger.info("Starting Telegram bot...")
-    await bot.app.run_polling(drop_pending_updates=True)
+    # Start web dashboard (Telegram kept but disabled)
+    dashboard = WebDashboard(orchestrator, repo, vstore)
+    dashboard.run(host="127.0.0.1", port=8080)
 
 
 if __name__ == "__main__":
