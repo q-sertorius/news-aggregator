@@ -4,31 +4,27 @@ polling:
 
 feeds:
   # Macroeconomics & Central Banks
-  - url: "https://www.reuters.com/finance/economy/"
-    category: "macroeconomics"
   - url: "https://feeds.bloomberg.com/markets/news.rss"
-    category: "macroeconomics"
-  - url: "https://www.ft.com/markets?format=rss"
     category: "macroeconomics"
   - url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"
     category: "macroeconomics"
+  - url: "https://www.cnbc.com/id/20910258/device/rss/rss.html"
+    category: "macroeconomics"
 
   # Geopolitics & World News
-  - url: "https://feeds.reuters.com/reuters/worldNews"
-    category: "geopolitics"
   - url: "https://feeds.bbci.co.uk/news/world/rss.xml"
     category: "geopolitics"
-  - url: "https://www.aljazeera.com/xml/rss/all.xml"
+  - url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
     category: "geopolitics"
-  - url: "https://rsshub.app/apnews/topics/world-news"
+  - url: "https://feeds.bbci.co.uk/news/business/rss.xml"
     category: "geopolitics"
 
   # Tech & Supply Chain
-  - url: "https://www.reuters.com/technology/rss"
-    category: "tech_supply_chain"
   - url: "https://techcrunch.com/feed/"
     category: "tech_supply_chain"
   - url: "https://www.theverge.com/rss/index.xml"
+    category: "tech_supply_chain"
+  - url: "https://arstechnica.com/feed/"
     category: "tech_supply_chain"
 
   # Commodities & Energy
@@ -46,7 +42,13 @@ feeds:
   # Corporate & Markets
   - url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
     category: "corporate"
-  - url: "https://www.ft.com/companies?format=rss"
+  - url: "https://www.marketwatch.com/rss/topstories"
+    category: "corporate"
+  - url: "https://www.investing.com/rss/news.rss"
+    category: "corporate"
+  - url: "https://www.marketwatch.com/rss/topstories"
+    category: "corporate"
+  - url: "https://www.investing.com/rss/news.rss"
     category: "corporate"
 
 llm:

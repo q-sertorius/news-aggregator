@@ -3,9 +3,14 @@
 import aiohttp
 import feedparser
 import asyncio
+import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
 
 
 class Article(BaseModel):
@@ -19,16 +24,25 @@ class Article(BaseModel):
 
 
 class RSSFetcher:
-    def __init__(self, timeout_seconds: int = 10):
+    def __init__(self, timeout_seconds: int = 15):
         self.timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+        # Browser-like headers to avoid 403 blocks
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+        }
 
     async def fetch_feed(self, url: str, category: str) -> List[Article]:
         """Fetch and parse a single RSS feed."""
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(url) as response:
+            async with aiohttp.ClientSession(
+                timeout=self.timeout, headers=self.headers
+            ) as session:
+                async with session.get(url, allow_redirects=True) as response:
                     if response.status != 200:
-                        print(f"Error fetching {url}: Status {response.status}")
+                        logger.debug(f"Skipping {url}: Status {response.status}")
                         return []
 
                     xml_content = await response.text()
@@ -65,7 +79,7 @@ class RSSFetcher:
 
                     return articles
         except Exception as e:
-            print(f"Failed to fetch feed {url}: {str(e)}")
+            logger.debug(f"Failed to fetch feed {url}: {str(e)}")
             return []
 
     async def fetch_all(self, feed_configs: List[Dict[str, str]]) -> List[Article]:
