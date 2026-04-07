@@ -15,8 +15,6 @@ from ..agents.impact_analyzer import ImpactAnalyzer
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 
 class PipelineOrchestrator:
     def __init__(self, config: AppConfig, db_path: str = "data/news_aggregator.db"):
@@ -39,55 +37,56 @@ class PipelineOrchestrator:
     async def run_pipeline(self, max_articles: int = None) -> List[Dict[str, Any]]:
         """Run a single polling cycle of the news aggregator."""
         start_time = time.time()
-        print(f"\n--- Starting Pipeline Run: {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
+        logger.info(
+            f"\n--- Starting Pipeline Run: {time.strftime('%Y-%m-%d %H:%M:%S')} ---"
+        )
 
         # 1. Fetch all news
-        print(f"[FETCH] Polling {len(self.config.feeds)} RSS feeds...")
+        logger.info(f"[FETCH] Polling {len(self.config.feeds)} RSS feeds...")
         raw_articles = await self.fetcher.fetch_all(
             [f.model_dump() for f in self.config.feeds]
         )
-        print(f"[FETCH] Retrieved {len(raw_articles)} total articles.")
+        logger.info(f"[FETCH] Retrieved {len(raw_articles)} total articles.")
 
         # 2. Deduplicate
         new_articles = await self.dedup.filter_new_articles(raw_articles)
 
-        # Cap articles per run based on config to avoid rate limits
-        max_articles = min(
-            self.config.llm.max_articles_per_run,
-            max_articles if max_articles else self.config.llm.max_articles_per_run,
-        )
-        new_articles = new_articles[:max_articles]
+        # Optional cap for quick testing, but default = process all
+        if max_articles:
+            new_articles = new_articles[:max_articles]
 
-        print(
-            f"[DEDUP] Identified {len(new_articles)} new articles to process (capped at {max_articles})."
-        )
+        logger.info(f"[DEDUP] {len(new_articles)} new articles to process.")
 
         if not new_articles:
-            print("[DEDUP] No new articles. Ending run early.")
+            logger.info("[DEDUP] No new articles. Ending run early.")
             return []
 
         # 3. Process each article through the agent pipeline
-        # We process sequentially or with small batches to respect Gemini's 15 RPM limit
+        # Rate limiting: openrouter/free has ~15 RPM. Each article = 3 LLM calls.
+        # We wait 4s between each LLM call to stay under 15/min.
         results = []
         processed_count = 0
+        call_delay = 60.0 / self.config.llm.rate_limit_rpm  # ~4s at 15 RPM
 
         for article in new_articles:
             try:
-                print(
-                    f"\n[PROCESS] Article {processed_count + 1}/{len(new_articles)}: '{article.title[:50]}...'"
+                logger.info(
+                    f"[PROCESS] Article {processed_count + 1}/{len(new_articles)}: '{article.title[:50]}...'"
                 )
 
                 # Step A: Summarize Facts
                 fact_summary = await self.summarizer.run(article)
-                logger.debug(f"Summarized: {article.title[:50]}...")
+                await asyncio.sleep(call_delay)
 
                 # Step B: Contextualize (Match to Subject)
                 context_result = await self.tracker.run(fact_summary)
+                await asyncio.sleep(call_delay)
 
                 # Step C: Impact Analysis
                 impact_result = await self.analyzer.run(
                     context_result["subject_id"], context_result["status_update"]
                 )
+                await asyncio.sleep(call_delay)
 
                 # Link article to subject in database
                 await self.repo.add_article(context_result["subject_id"], fact_summary)
@@ -106,30 +105,19 @@ class PipelineOrchestrator:
 
                 processed_count += 1
 
-                # Rate limiting: Free models on OpenRouter have strict RPM limits.
-                # Each article = 3 LLM calls. We space them out to avoid 429 errors.
-                # 15 RPM = 1 call per 4s. With 3 calls per article, wait ~12s between articles.
-                if processed_count < len(new_articles):
-                    await asyncio.sleep(12)
-
             except Exception as e:
-                import traceback
-
-                print(
+                logger.error(
                     f"[ERROR] Failed to process article '{article.title[:30]}': {str(e)}"
                 )
-                traceback.print_exc()
-                # Log to dead letter
-
                 await self.repo.add_to_dead_letter(
                     article.source_url, article.summary_snippet or "", str(e)
                 )
                 continue
 
         duration = time.time() - start_time
-        print(f"\n--- Pipeline Run Complete ({duration:.1f}s) ---")
-        print(f"[METRICS] Articles Processed: {processed_count}")
-        print(
+        logger.info(f"\n--- Pipeline Run Complete ({duration:.1f}s) ---")
+        logger.info(f"[METRICS] Articles Processed: {processed_count}")
+        logger.info(
             f"[METRICS] Impactful Subjects Detected: {len([r for r in results if r['impact'] != 'NONE'])}"
         )
 
