@@ -158,8 +158,6 @@ class NewsBot:
                 logger.error(f"Failed to send report to {chat_id}: {e}")
                 return  # Non-retryable error, give up
         logger.error(f"Failed to send report to {chat_id} after {max_retries} retries")
-                return  # Non-retryable error, give up
-        logger.error(f"Failed to send report to {chat_id} after {max_retries} retries")
 
     def run(self):
         """Start the bot with automatic restart on network failure."""
