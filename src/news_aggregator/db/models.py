@@ -36,10 +36,12 @@ CREATE TABLE IF NOT EXISTS articles (
 CREATE TABLE IF NOT EXISTS subject_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subject_id INTEGER NOT NULL,
+    article_id INTEGER, -- Link to the article that triggered this history entry
     status_snapshot TEXT NOT NULL,
     impact_level TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE CASCADE
+    FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES articles (id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS history_articles (
