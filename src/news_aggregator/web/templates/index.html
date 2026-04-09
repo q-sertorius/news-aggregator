@@ -95,14 +95,12 @@
             <div class="table-scroll">
                 <table>
                     <thead><tr>
-                        <th style="width: 25%;">Topic</th>
-                        <th style="width: 30%;">Latest Status</th>
+                        <th style="width: 35%;">Topic</th>
+                        <th style="width: 40%;">Latest Status</th>
                         <th style="width: 10%;">Impact</th>
-                        <th style="width: 15%;">Assets</th>
-                        <th style="width: 10%;">Category</th>
-                        <th style="width: 10%;">Updated</th>
+                        <th style="width: 15%;">Updated</th>
                     </tr></thead>
-                    <tbody id="topics-body"><tr><td colspan="6" class="loading">No topics tracked yet</td></tr></tbody>
+                    <tbody id="topics-body"><tr><td colspan="4" class="loading">No topics tracked yet</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -142,7 +140,7 @@
                 const tbody = document.getElementById('topics-body');
 
                 if (!data.length) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No topics tracked yet. Run the pipeline to start.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">No topics tracked yet. Run the pipeline to start.</td></tr>';
                     return;
                 }
 
@@ -153,7 +151,6 @@
                     const isNew = newIds.some(n => n.id === t.id);
                     const flashClass = isNew ? 'flash-row' : '';
                     const badge = t.classification === 'NEW_SUBJECT' ? '<span class="badge-new">NEW</span>' : '<span class="badge-ongoing">ONGOING</span>';
-                    const assetStr = (t.assets && t.assets.length) ? t.assets.join(', ') : '-';
 
                     return `<tr class="${flashClass}">
                         <td><span class="topic-name">${badge}${t.name}</span></td>
@@ -163,8 +160,6 @@
                             ${t.reasoning ? `<div class="topic-reasoning">${t.reasoning}</div>` : ''}
                         </td>
                         <td class="impact-${(t.impact_level || 'none').toLowerCase()}">${t.impact_level || 'NONE'}</td>
-                        <td class="topic-assets">${assetStr}</td>
-                        <td>${t.category || '-'}</td>
                         <td style="font-size: 12px; color: var(--text-dim);">${t.last_seen ? new Date(t.last_seen).toLocaleString() : '-'}</td>
                     </tr>`;
                 }).join('');
@@ -275,7 +270,7 @@
         debugDropdown.addEventListener('mouseover', showDropdown);
         debugDropdown.addEventListener('mouseout', hideDropdown);
 
-        autoRefreshInterval = setInterval(refreshAll, 10000);
+        autoRefreshInterval = setInterval(refreshAll, 5000);
         refreshAll();
     </script>
 </body>
