@@ -47,7 +47,13 @@ class ArticleProcessor(BaseAgent):
             "   - If the article is about the EXACT SAME specific event/topic as an existing subject, set 'classification' to 'ONGOING_DEVELOPMENT' and provide its 'subject_id'.\n"
             "   - If it is a DIFFERENT event (e.g., do not merge a tech stock with geopolitics), set 'classification' to 'NEW_SUBJECT', 'subject_id' to null, and write a 'suggested_name' (max 10 words).\n"
             "3. STATUS UPDATE: Write a direct, factual news headline summarizing the article. DO NOT use meta-phrases like 'New subject tracking...', 'The article discusses...', or 'This is about...'. Just state the facts.\n"
-            "4. ANALYZE: Assess market impact (HIGH, MEDIUM, LOW, or NONE) and provide a 1-sentence 'reasoning'.\n\n"
+            "4. ANALYZE: Assess market impact (HIGH, MEDIUM, LOW, or NONE) and provide a 1-sentence 'reasoning'.\n"
+            "   - Use HIGH for major market-moving news (e.g., central bank policy shifts, major corporate earnings surprises, significant geopolitical conflicts).\
+"
+            "   - Use MEDIUM for moderately impactful news (e.g., sector-specific trends, minor economic data, smaller corporate announcements).\
+"
+            "   - Use LOW or NONE for minor news, speculative reports, or events with negligible market relevance.\
+\n"
             "EXPECTED JSON FORMAT:\n"
             "{\n"
             '  "facts": ["fact 1", "fact 2"],\n'
@@ -70,16 +76,6 @@ class ArticleProcessor(BaseAgent):
             f"Category: {article.category}\n"
             f"Content: {article.summary_snippet or 'N/A'}\n\n"
             "Analyze the New Article and output the JSON."
-        )
-
-        user_prompt = (
-            f"{existing_subjects_text}"
-            f"New Article:\n"
-            f"  Title: {article.title}\n"
-            f"  Feed: {article.feed_name}\n"
-            f"  Category: {article.category}\n"
-            f"  Content: {article.summary_snippet or 'N/A'}\n\n"
-            "Return JSON only."
         )
 
         result = await self._call_llm(system_prompt, user_prompt, is_json=True)

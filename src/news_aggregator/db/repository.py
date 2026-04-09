@@ -61,7 +61,6 @@ class NewsRepository:
         subject_id: int,
         status: str,
         impact_level: str,
-        assets: List[str],
         article_id: int,
     ):
         """Update a subject's status, impact level, and associated assets."""
@@ -87,16 +86,6 @@ class NewsRepository:
                 ),
             )
             history_id = cursor.lastrowid
-
-            await db.execute(
-                "DELETE FROM subject_assets WHERE subject_id = ?", (subject_id,)
-            )
-            for asset in assets:
-                await db.execute(
-                    "INSERT INTO subject_assets (subject_id, asset_ticker) VALUES (?, ?)",
-                    (subject_id, asset),
-                )
-
             await db.commit()
             return history_id
 
@@ -274,11 +263,8 @@ class NewsRepository:
             cursor = await db.execute(
                 """
                 SELECT
-                    s.id, s.name, s.category, s.latest_status, s.impact_level, s.last_seen,
-                    GROUP_CONCAT(sa.asset_ticker) AS affected_assets
+                    s.id, s.name, s.category, s.latest_status, s.impact_level, s.last_seen
                 FROM subjects s
-                LEFT JOIN subject_assets sa ON s.id = sa.subject_id
-                GROUP BY s.id
                 ORDER BY
                     CASE s.impact_level
                         WHEN 'HIGH' THEN 1
@@ -295,17 +281,7 @@ class NewsRepository:
             formatted_subjects = []
             for row in rows:
                 d = dict(row)
-                d["affected_assets"] = (
-                    d["affected_assets"].split(",") if d["affected_assets"] else []
-                )
-                if isinstance(d["last_seen"], str):
-                    d["last_seen"] = (
-                        datetime.fromisoformat(
-                            d["last_seen"].replace("Z", "+00:00")
-                        ).isoformat()
-                        + "Z"
-                    )
-                elif isinstance(d["last_seen"], datetime):
+                if isinstance(d["last_seen"], datetime):
                     d["last_seen"] = d["last_seen"].isoformat() + "Z"
                 formatted_subjects.append(d)
             return formatted_subjects

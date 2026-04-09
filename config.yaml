@@ -52,8 +52,10 @@ feeds:
     category: "corporate"
 
 llm:
-  model: "openrouter/free"
-  base_url: "https://openrouter.ai/api/v1"
+  provider: OLLAMA # Configured for Ollama
+  model: "gemma4:e4b" # Specific Ollama model
+  base_url: null # Explicitly set OpenRouter's base_url to null when using Ollama
+  ollama_base_url: "http://localhost:11434/v1" # Ollama local URL
   max_tokens: 2000
   temperature: 0.1
   rate_limit_rpm: 15

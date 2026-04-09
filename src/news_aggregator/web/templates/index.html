@@ -57,7 +57,8 @@
         .history-item:last-child { border-bottom: none; }
         .history-article-title { font-size: 13px; margin-top: 4px; }
         .history-status { font-size: 14px; color: var(--text); margin-bottom: 4px; }
-        .history-meta { font-size: 12px; color: var(--text-dim); }
+        .history-meta { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; flex-wrap: wrap; }
+        .history-meta .url-link { margin-right: 8px; }
         .status-history-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; margin-left: 8px; padding: 0; text-decoration: underline; }
         .status-history-btn:hover { opacity: 0.8; }
         .dropdown { position: relative; display: inline-block; }
@@ -65,7 +66,7 @@
         .dropdown-content button { color: var(--text); padding: 12px 16px; text-decoration: none; display: block; background: none; border: none; width: 100%; text-align: left; cursor: pointer; font-size: 14px; transition: background-color 0.2s; }
         .dropdown-content button:hover { background-color: var(--border); }
         .dropdown-stat-label { color: var(--text-dim); font-size: 13px; padding: 8px 16px 4px 16px; cursor: default; }
-        .dropdown-stat-item { color: var(--text-dim); padding: 4px 16px; font-size: 13px; white-space: nowrap; cursor: default; }
+        .dropdown-stat-item { color: var(--text); padding: 4px 16px; font-size: 13px; white-space: nowrap; cursor: default; }
         .dropdown-stat-item strong { color: var(--text); }
     </style>
 </head>
@@ -77,7 +78,6 @@
                 <div class="dropdown" id="debugDropdown">
                     <button class="btn btn-secondary" id="debugBtn">Debug ▼</button>
                     <div class="dropdown-content" id="dropdownContent">
-                        <div class="dropdown-stat-label">Stats:</div>
                         <div class="dropdown-stat-item">Topics: <strong id="dropdown-stat-subjects">-</strong></div>
                         <div class="dropdown-stat-item">Articles: <strong id="dropdown-stat-articles">-</strong></div>
                         <div class="dropdown-stat-item">Failed: <strong id="dropdown-stat-dead">-</strong></div>
@@ -136,11 +136,14 @@
         async function loadTopics() {
             try {
                 const res = await fetch('/api/topics');
-                const data = await res.json();
+                let data = await res.json();
                 const tbody = document.getElementById('topics-body');
 
+                // Filter out LOW and NONE impact topics
+                data = data.filter(t => (t.impact_level || 'NONE').toUpperCase() !== 'LOW' && (t.impact_level || 'NONE').toUpperCase() !== 'NONE');
+
                 if (!data.length) {
-                    tbody.innerHTML = '<tr><td colspan="4" class="loading">No topics tracked yet. Run the pipeline to start.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="loading">No high or medium impact topics to display.</td></tr>';
                     return;
                 }
 
