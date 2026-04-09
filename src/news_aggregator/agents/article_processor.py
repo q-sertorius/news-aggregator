@@ -25,10 +25,11 @@ class ArticleProcessor(BaseAgent):
                 "Existing Active Subjects (ID, Name, Latest Status, Impact):\n"
             )
             for s in top_subjects:
+                latest_status = s.get("latest_status") or ""
                 status_snippet = (
-                    (s.get("latest_status", "")[:100] + "...")
-                    if len(s.get("latest_status", "")) > 100
-                    else s.get("latest_status", "")
+                    (latest_status[:100] + "...")
+                    if len(latest_status) > 100
+                    else latest_status
                 )
                 existing_subjects_text += (
                     f'- ID: {s["id"]}, Name: "{s["name"]}", '
@@ -39,25 +40,36 @@ class ArticleProcessor(BaseAgent):
             existing_subjects_text = "No active subjects currently being tracked.\n\n"
 
         system_prompt = (
-            "You are a news analysis engine. Process the given article in THREE steps and output a SINGLE JSON:\n"
-            "1. EXTRACT: Pull out only verifiable facts, figures, entities.\n"
-            "2. CLASSIFY: Given the 'Existing Active Subjects' below, determine if the new article "
-            "is an 'ONGOING_DEVELOPMENT' of one of them (return its ID and update status). "
-            "If it's a completely new, distinct topic, classify it as 'NEW_SUBJECT' "
-            "and suggest a concise, descriptive name (max 10 words). Be aggressive about merging "
-            "similar topics, favoring 'ONGOING_DEVELOPMENT' if a clear link exists to an active subject.\n"
-            "3. ANALYZE: Assess market impact (HIGH/MEDIUM/LOW/NONE) of the article (or new subject if applicable) "
-            "with affected assets (e.g., SPY, QQQ, AAPL, USD, Oil) and one-sentence reasoning.\n\n"
-            "Output JSON with keys:\n"
-            '  "facts": [list of fact strings],\n'
-            '  "entities": [list of people/orgs],\n'
+            "You are a strict news analysis JSON API. You must process the article and return ONLY a valid JSON object.\n\n"
+            "RULES:\n"
+            "1. EXTRACT: Find verifiable facts, figures, and entities.\n"
+            "2. CLASSIFY: Compare the New Article to the Existing Active Subjects.\n"
+            "   - If the article is about the EXACT SAME specific event/topic as an existing subject, set 'classification' to 'ONGOING_DEVELOPMENT' and provide its 'subject_id'.\n"
+            "   - If it is a DIFFERENT event (e.g., do not merge a tech stock with geopolitics), set 'classification' to 'NEW_SUBJECT', 'subject_id' to null, and write a 'suggested_name' (max 10 words).\n"
+            "3. STATUS UPDATE: Write a direct, factual news headline summarizing the article. DO NOT use meta-phrases like 'New subject tracking...', 'The article discusses...', or 'This is about...'. Just state the facts.\n"
+            "4. ANALYZE: Assess market impact (HIGH, MEDIUM, LOW, or NONE) and provide a 1-sentence 'reasoning'.\n\n"
+            "EXPECTED JSON FORMAT:\n"
+            "{\n"
+            '  "facts": ["fact 1", "fact 2"],\n'
+            '  "entities": ["entity 1", "entity 2"],\n'
             '  "classification": "NEW_SUBJECT" or "ONGOING_DEVELOPMENT",\n'
-            '  "subject_id": number or null (if NEW_SUBJECT),\n'
-            '  "suggested_name": string (only if NEW_SUBJECT),\n'
-            '  "status_update": one-line status summary for the subject (new or updated),\n'
-            '  "impact_level": "HIGH", "MEDIUM", "LOW", or "NONE",\n'
-            '  "affected_assets": [list of tickers/sectors],\n'
-            '  "reasoning": one sentence on why this impact level.'
+            '  "subject_id": 123 or null,\n'
+            '  "suggested_name": "Short Descriptive Topic Name",\n'
+            '  "status_update": "Factual news summary of the article.",\n'
+            '  "impact_level": "HIGH",\n'
+            '  "reasoning": "Reason for impact."\n'
+            "}"
+        )
+
+        user_prompt = (
+            f"--- EXISTING ACTIVE SUBJECTS ---\n"
+            f"{existing_subjects_text if top_subjects else 'None'}\n"
+            f"--- NEW ARTICLE ---\n"
+            f"Title: {article.title}\n"
+            f"Feed: {article.feed_name}\n"
+            f"Category: {article.category}\n"
+            f"Content: {article.summary_snippet or 'N/A'}\n\n"
+            "Analyze the New Article and output the JSON."
         )
 
         user_prompt = (
@@ -113,7 +125,6 @@ class ArticleProcessor(BaseAgent):
             subject_id=subject_id,
             status=result.get("status_update", ""),
             impact_level=result.get("impact_level", "NONE"),
-            assets=result.get("affected_assets", []),
             article_id=article_id,
         )
 
@@ -122,7 +133,7 @@ class ArticleProcessor(BaseAgent):
             "subject_id": subject_id,
             "status": result.get("status_update", ""),
             "impact": result.get("impact_level", "NONE"),
-            "assets": result.get("affected_assets", []),
+            "assets": [],  # Assets are no longer tracked in DB, but LLM might still generate them
             "reasoning": result.get("reasoning", ""),
             "url": article.source_url,
             "facts": result.get("facts", []),
